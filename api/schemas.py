@@ -81,6 +81,26 @@ class SearchResponse(BaseModel):
     results: List[ReviewResponse]
 
 
+class ChatCitation(BaseModel):
+    review_id: str | None
+    excerpt: str
+    platform: str
+    posted_at: datetime | None = None
+    sentiment: str | None = None
+
+
+class ChatResponse(BaseModel):
+    question: str
+    answer: str
+    refused: bool
+    based_on_review_count: int
+    criticality_rating: int
+    citations: List[ChatCitation]
+    related_themes: List[str]
+    source: str
+    total_matches: int | None = None
+
+
 # ── Research Questions models ────────────────────────────────────────────
 
 class SegmentedTheme(BaseModel):

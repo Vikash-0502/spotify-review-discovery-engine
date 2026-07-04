@@ -38,9 +38,9 @@ Status legend: ✅ Built · 🟡 Partial / older approach · ⬜ Not started
 | 4 | Embedding & Themes | 🟡 Partial | Chroma storage for embeddings is now implemented; Stage A/B Groq theme flow is still the target |
 | 5 | Segments & Needs | 🟡 Partial | Some analysis exists; segment/needs need alignment |
 | 6 | Validation & Weekly Pulse (Docs MCP) | ✅ Built | Validator + quota-safe pulse runner + dry-run / MCP command bridge |
-| 7 | API & Search | ✅ Built | FastAPI endpoints + search |
-| 8 | Dashboard | ✅ Built | Streamlit 5-tab UI |
-| 9 | Integration & Delivery | ⬜ Not started | End-to-end validation + privacy audit |
+| 7 | API & Search | ✅ Built | FastAPI endpoints, hybrid Chroma search, grounded `/api/chat` RAG endpoint |
+| 8 | Dashboard | ✅ Built | Five tabs, shared filters, research-question cards, evidence badges, accessible palette |
+| 9 | Integration & Delivery | ✅ Built | End-to-end validation script, privacy audit, demo script, docs |
 
 > The updated architecture uses a **hybrid storage model**: **Chroma** stores embeddings and powers semantic retrieval, while **SQLite** stores structured records like reviews, sentiment, themes, segments, quotes, and pulse runs. Phases marked 🟡 still need partial re-alignment to the full target design.
 
@@ -280,7 +280,7 @@ python scripts/run_pulse.py --dry-run  # validate only, no MCP write
 
 1. `api/main.py` (FastAPI) with endpoints: stats, themes, segments, unmet needs, and the latest weekly-pulse Doc link.
 2. Search endpoint: semantic (**Chroma**) + keyword, with date filters and latest-first sort.
-3. RAG chat endpoint: retrieve from Chroma → Groq answers **only from context** → cite `review_id`s → refuse on empty retrieval.
+3. RAG chat endpoint: retrieve from Chroma → Groq answers **only from context** → cite `review_id`s → refuse on empty retrieval. Implemented at `GET /api/chat`.
 4. Add API tests and docs.
 
 ### Run
@@ -360,7 +360,7 @@ pytest tests/ -v
 - Weekly pulse written to Google Docs via MCP with only validated content.
 - No reviewer-identifying data in any surface; documentation complete.
 
-**Status:** ⬜ Not started
+**Status:** ✅ Built (`scripts/validate_integration.py`, `validation/privacy_audit.py`, `docs.md/demo_script.md`)
 
 ---
 

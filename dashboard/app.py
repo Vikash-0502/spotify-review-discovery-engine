@@ -22,6 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from analysis.question_mapper import compute_segment_label
 import analysis.llm as llm
+from dashboard.helpers import evidence_strength_label, render_based_on_badge, sentiment_badge
 from utils.config import get_settings  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -289,6 +290,19 @@ def search_reviews(query_text, platform, start, end, limit=30):
     if platform:
         params["platform"] = platform
     resp = requests.get(f"{API_BASE_URL}/search", params=params)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def ask_discovery_chat(query_text, platform, start, end, limit=6):
+    params = {"q": query_text, "limit": limit}
+    if start:
+        params["from_date"] = start.isoformat()
+    if end:
+        params["to_date"] = end.isoformat()
+    if platform:
+        params["platform"] = platform
+    resp = requests.get(f"{API_BASE_URL}/chat", params=params, timeout=30.0)
     resp.raise_for_status()
     return resp.json()
 
@@ -731,6 +745,94 @@ st.markdown(
         line-height: 1.5;
         margin: 0;
     }
+    .filter-panel {
+        background: #111111;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 18px;
+        padding: 1.2rem 1.3rem;
+        margin: 0.8rem 0 1.2rem 0;
+    }
+    .filter-panel-title {
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0 0 0.25rem 0;
+    }
+    .filter-panel-caption {
+        color: #9ca3af;
+        font-size: 0.88rem;
+        margin: 0 0 0.85rem 0;
+    }
+    .evidence-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(29, 185, 84, 0.12);
+        color: #1DB954;
+        border: 1px solid rgba(29, 185, 84, 0.28);
+        border-radius: 999px;
+        padding: 0.28rem 0.7rem;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.25px;
+        text-transform: uppercase;
+    }
+    .sent-badge {
+        display: inline-block;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.35px;
+        text-transform: uppercase;
+    }
+    .sent-negative {
+        background: rgba(234, 88, 12, 0.18);
+        color: #fdba74;
+        border: 1px dashed rgba(251, 146, 60, 0.55);
+    }
+    .sent-neutral {
+        background: rgba(59, 130, 246, 0.16);
+        color: #93c5fd;
+        border: 1px solid rgba(96, 165, 250, 0.45);
+    }
+    .sent-positive {
+        background: rgba(20, 184, 166, 0.16);
+        color: #5eead4;
+        border: 1px solid rgba(45, 212, 191, 0.45);
+    }
+    .research-question-card {
+        background: linear-gradient(180deg, rgba(18,18,18,1), rgba(12,12,12,1));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        padding: 1rem 1.1rem;
+        margin-bottom: 0.85rem;
+    }
+    .research-question-title {
+        color: #ffffff;
+        font-size: 0.98rem;
+        font-weight: 700;
+        margin: 0 0 0.45rem 0;
+        line-height: 1.35;
+    }
+    .research-question-answer {
+        color: #d1d5db;
+        font-size: 0.92rem;
+        line-height: 1.55;
+        margin: 0.55rem 0 0 0;
+    }
+    .strength-badge {
+        display: inline-block;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.35px;
+        text-transform: uppercase;
+    }
+    .strength-high { background: rgba(234, 88, 12, 0.18); color: #fdba74; border: 1px solid rgba(251, 146, 60, 0.4); }
+    .strength-medium { background: rgba(59, 130, 246, 0.16); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.4); }
+    .strength-low { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.35); }
     </style>
     """,
     unsafe_allow_html=True,
@@ -799,6 +901,98 @@ for idx, tab_name in enumerate(TAB_OPTIONS):
             st.rerun()
 
 
+def render_shared_filters():
+    st.markdown(
+        '<div class="filter-panel">'
+        '<div class="filter-panel-title">Review filters</div>'
+        '<div class="filter-panel-caption">Shared across Overview, Themes, Segments, Unmet Needs, and Review Discovery.</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    col_filter_1, col_filter_2 = st.columns([1, 1])
+    with col_filter_1:
+        st.selectbox(
+            "Source filter",
+            list(PLATFORM_OPTIONS.keys()),
+            index=list(PLATFORM_OPTIONS.keys()).index(st.session_state.source_label),
+            key="source_label",
+        )
+    with col_filter_2:
+        st.selectbox(
+            "Date range",
+            ["All time", "Last 7 days", "Last 30 days", "Last 90 days", "Custom"],
+            index=["All time", "Last 7 days", "Last 30 days", "Last 90 days", "Custom"].index(st.session_state.date_preset),
+            key="date_preset",
+        )
+    if st.session_state.date_preset == "Custom":
+        col_custom_1, col_custom_2 = st.columns(2)
+        with col_custom_1:
+            st.date_input("From", value=st.session_state.custom_from, key="custom_from")
+        with col_custom_2:
+            st.date_input("To", value=st.session_state.custom_to, key="custom_to")
+
+
+def get_date_label() -> str:
+    if st.session_state.date_preset == "Custom":
+        return (
+            f"{st.session_state.custom_from.strftime('%b %d, %Y')} to "
+            f"{st.session_state.custom_to.strftime('%b %d, %Y')}"
+        )
+    return st.session_state.date_preset
+
+
+def render_active_filter_summary(total_reviews: int):
+    source_label = st.session_state.source_label
+    st.markdown(
+        f'<div class="active-filter-badge">'
+        f'Source: {html.escape(source_label)} · Dates: {html.escape(get_date_label())} · '
+        f'{total_reviews:,} reviews in scope'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_research_questions_section(answers: list[dict]):
+    st.subheader("🎯 Research questions")
+    st.caption("Overview answers mapped to the six core discovery research questions.")
+
+    if not answers:
+        st.info("Research question answers are not available for the selected filters.")
+        return
+
+    for idx, answer in enumerate(answers, 1):
+        question = html.escape(answer.get("question", f"Research question {idx}"))
+        summary = html.escape(answer.get("answer_summary", "No answer available."))
+        review_count = int(answer.get("supporting_review_count", 0) or 0)
+        stars_html = render_stars_str(int(answer.get("criticality_rating", 3) or 3))
+        st.markdown(
+            f'<div class="research-question-card">'
+            f'  <div class="research-question-title">Q{idx}. {question}</div>'
+            f'  {render_based_on_badge(review_count)}'
+            f'  <div style="margin-top:0.55rem;font-size:0.85rem;color:#9ca3af;">Criticality: {stars_html}</div>'
+            f'  <p class="research-question-answer">{summary}</p>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        quotes = answer.get("representative_quotes", []) or []
+        if quotes:
+            with st.expander(f"View supporting evidence ({len(quotes)} excerpts)", expanded=False):
+                for quote in quotes:
+                    excerpt = html.escape((quote.get("excerpt") or "")[:320])
+                    platform = html.escape(quote.get("platform") or "unknown")
+                    review_id = quote.get("review_id")
+                    source_line = f"{platform}" if not review_id else f"{platform} · review_id: {review_id}"
+                    st.markdown(
+                        f'<div class="evidence-quote-box">"{excerpt}"'
+                        f'<div class="evidence-quote-source">— {source_line}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+
+
+render_shared_filters()
+render_active_filter_summary(total)
+
+
 # Helper rating stars
 def render_stars_str(rating: int, max_stars: int = 5) -> str:
     filled = "★" * rating
@@ -808,10 +1002,10 @@ def render_stars_str(rating: int, max_stars: int = 5) -> str:
 
 def compute_friction_label(sentiment: str) -> str:
     if sentiment == "negative":
-        return "🔴 High Friction"
+        return "High Friction"
     if sentiment == "neutral":
-        return "🟠 Moderate Friction"
-    return "🟢 Positive Signal"
+        return "Moderate Friction"
+    return "Positive Signal"
 
 
 def get_segment_badge_class(segment: str) -> str:
@@ -1376,50 +1570,9 @@ def render_complaint_cards(points):
 # ═══════════════════════════════════════════════════════════════════════════
 if st.session_state.active_tab == "Overview":
     platform_name = PLATFORM_LABELS.get(selected_platform, "All Platforms")
-    date_label = st.session_state.date_preset
-    if st.session_state.date_preset == "Custom":
-        date_label = f"{st.session_state.custom_from.strftime('%b %d, %Y')} to {st.session_state.custom_to.strftime('%b %d, %Y')}"
+    date_label = get_date_label()
 
-    st.markdown("<div style='margin-bottom: 1.5rem;'></div>", unsafe_allow_html=True)
-    filter_col1, filter_col2, filter_col3 = st.columns([1, 5, 1])
-    with filter_col2:
-        st.markdown(
-            "<div style='background:#111111; border:1px solid rgba(255,255,255,0.08); border-radius:18px; padding:1.6rem; margin-bottom:1.5rem;'>"
-            "<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;'>"
-            "<div><h3 style='margin:0; color:#ffffff;'>Review filters</h3>"
-            "<div style='color:#9ca3af; font-size:0.92rem;'>Select source and date range for the overview.</div></div>"
-            "</div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        col_filter_1, col_filter_2 = st.columns([1, 1])
-        with col_filter_1:
-            st.selectbox(
-                "Source filter",
-                list(PLATFORM_OPTIONS.keys()),
-                index=list(PLATFORM_OPTIONS.keys()).index(st.session_state.source_label),
-                key="source_label",
-            )
-        with col_filter_2:
-            st.selectbox(
-                "Date range",
-                ["All time", "Last 7 days", "Last 30 days", "Last 90 days", "Custom"],
-                index=["All time", "Last 7 days", "Last 30 days", "Last 90 days", "Custom"].index(st.session_state.date_preset),
-                key="date_preset",
-            )
-        if st.session_state.source_label != "All Sources":
-            st.markdown(
-                f"<div style='margin-top:0.75rem; color:#9ca3af;'>Showing executive summary for <strong>{st.session_state.source_label}</strong>.</div>",
-                unsafe_allow_html=True,
-            )
-        if st.session_state.date_preset == "Custom":
-            col_custom_1, col_custom_2 = st.columns(2)
-            with col_custom_1:
-                st.date_input("From", value=st.session_state.custom_from, key="custom_from")
-            with col_custom_2:
-                st.date_input("To", value=st.session_state.custom_to, key="custom_to")
-
-    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
     k1, k2, k3, k4 = st.columns(4)
     with k1:
         st.markdown(
@@ -1445,6 +1598,7 @@ if st.session_state.active_tab == "Overview":
         )
 
     render_latest_pulse_card(latest_pulse)
+    render_research_questions_section(question_data.get("answers", []) if question_data else [])
 
     def build_executive_summary(total_reviews, platform_name, date_label, sentiment_data):
         if total_reviews == 0:
@@ -1631,6 +1785,7 @@ elif st.session_state.active_tab == "Themes & Chat":
                     f'    <div>'
                     f'      <h4 class="theme-title">{theme_name}</h4>'
                     f'      <div class="theme-subtitle">Cluster of {t["review_count"]} sampled reviews · average rating {avg_rating:.1f}★</div>'
+                    f'      <div style="margin-top:0.45rem;">{render_based_on_badge(t["review_count"])}</div>'
                     f'    </div>'
                     f'    <span class="theme-badge {badge_class}">{badge_text}</span>'
                     f'  </div>'
@@ -1649,7 +1804,7 @@ elif st.session_state.active_tab == "Themes & Chat":
                         for rev in sup_reviews:
                             st.markdown(
                                 f'<div class="evidence-quote-box">"{rev["content"]}"'
-                                f'<div class="evidence-quote-source">id: {rev["id"]}</div></div>',
+                                f'<div class="evidence-quote-source">review_id: {rev["id"]} · {sentiment_badge(rev.get("sentiment"))}</div></div>',
                                 unsafe_allow_html=True,
                             )
                     else:
@@ -1703,50 +1858,38 @@ elif st.session_state.active_tab == "Themes & Chat":
 
         # Handle Chat Submission
         if ask_clicked and chat_input_val.strip():
-            # Clear input state
             st.session_state.chat_query = ""
-            
-            # Fetch answer
             query = chat_input_val.strip()
-            
-            # Check if matching starter question
-            matched_ans = None
-            answers = question_data.get("answers", [])
-            for ans in answers:
-                if ans["question"].lower() in query.lower() or query.lower() in ans["question"].lower():
-                    matched_ans = ans
-                    break
 
-            if matched_ans:
+            try:
+                chat_data = ask_discovery_chat(query, selected_platform, date_start, date_end)
                 ai_response = {
-                    "question": chat_input_val,
-                    "summary": matched_ans["answer_summary"],
-                    "rating": matched_ans["criticality_rating"],
-                    "themes": [t["name"] for t in matched_ans["top_themes"]],
-                    "quotes": [{"excerpt": q["excerpt"], "platform": q["platform"]} for q in matched_ans["representative_quotes"]]
+                    "question": chat_data.get("question", query),
+                    "summary": chat_data.get("answer", "No answer returned."),
+                    "rating": chat_data.get("criticality_rating", 3),
+                    "themes": chat_data.get("related_themes", []),
+                    "quotes": [
+                        {
+                            "excerpt": citation.get("excerpt", ""),
+                            "platform": citation.get("platform", ""),
+                            "review_id": citation.get("review_id"),
+                        }
+                        for citation in chat_data.get("citations", [])
+                    ],
+                    "based_on_review_count": chat_data.get("based_on_review_count", 0),
+                    "refused": chat_data.get("refused", False),
                 }
-            else:
-                # Custom query search
-                search_data = search_reviews(query, selected_platform, date_start, date_end, limit=5)
-                results = search_data.get("results", [])
-                if results:
-                    summary_text = f"Based on semantic search, we found {len(results)} reviews referencing this. Users highlight issues like " + ", ".join([f"'{r['content'][:40].strip()}...'" for r in results[:3]]) + "."
-                    ai_response = {
-                        "question": chat_input_val,
-                        "summary": summary_text,
-                        "rating": 3,
-                        "themes": ["Custom Search Matches"],
-                        "quotes": [{"excerpt": r["content"], "platform": r["platform"]} for r in results[:3]]
-                    }
-                else:
-                    ai_response = {
-                        "question": chat_input_val,
-                        "summary": "No matching reviews found for your question in the current index.",
-                        "rating": 1,
-                        "themes": [],
-                        "quotes": []
-                    }
-            
+            except Exception:
+                ai_response = {
+                    "question": query,
+                    "summary": "The chat service is unavailable right now. Please confirm the API backend is running and try again.",
+                    "rating": 1,
+                    "themes": [],
+                    "quotes": [],
+                    "based_on_review_count": 0,
+                    "refused": True,
+                }
+
             if "chat_history" not in st.session_state:
                 st.session_state.chat_history = []
             st.session_state.chat_history.insert(0, ai_response)
@@ -1767,11 +1910,18 @@ elif st.session_state.active_tab == "Themes & Chat":
                 
                 stars_html = render_stars_str(chat["rating"])
                 themes_html = ", ".join(f"`{t}`" for t in chat["themes"])
+                based_on = chat.get("based_on_review_count", 0)
+                based_on_html = (
+                    f'<div style="font-size:0.8rem;color:#8e8e8e;margin-top:0.35rem;">Based on {based_on:,} reviews</div>'
+                    if based_on
+                    else ""
+                )
                 st.markdown(
                     f'<div class="chat-bubble-ai">'
                     f'  <strong style="color: #b3b3b3; font-size: 0.85rem; text-transform: uppercase;">AI ASSISTANT Response:</strong>'
                     f'  <div style="margin: 0.4rem 0; font-size: 0.9rem;"><strong>Severity:</strong> {stars_html}</div>'
                     f'  <p style="margin: 0.5rem 0; font-size: 0.95rem; color: #e5e7eb; line-height: 1.5;">{chat["summary"]}</p>'
+                    f'  {based_on_html}'
                     f'  {f"<div style=font-size:0.8rem;color:#8e8e8e;margin-top:0.6rem;>Related themes: {themes_html}</div>" if chat["themes"] else ""}'
                     f'</div>',
                     unsafe_allow_html=True
@@ -1781,9 +1931,11 @@ elif st.session_state.active_tab == "Themes & Chat":
                     with st.expander("Show Supporting Evidence Quotes", expanded=False):
                         for q in chat["quotes"]:
                             plat = PLATFORM_LABELS.get(q["platform"], q["platform"])
+                            review_id = q.get("review_id")
+                            source_line = f"— {plat}" if not review_id else f"— {plat} · review_id: {review_id}"
                             st.markdown(
                                 f'<div class="evidence-quote-box">"{q["excerpt"]}"'
-                                f'<div class="evidence-quote-source">— {plat}</div></div>',
+                                f'<div class="evidence-quote-source">{source_line}</div></div>',
                                 unsafe_allow_html=True
                             )
 
@@ -1799,17 +1951,15 @@ elif st.session_state.active_tab == "Segments":
     segments = seg_data.get("segments", []) if seg_data else []
     if segments:
         for s in segments:
-            strength = "Low"
-            if s["count"] >= 50:
-                strength = "High"
-            elif s["count"] >= 15:
-                strength = "Medium"
+            strength_label, strength_class = evidence_strength_label(s.get("count", 0))
 
             st.markdown(
                 f'<div style="background:#181818; padding:1rem; border-radius:10px; border:1px solid rgba(255,255,255,0.05); margin-bottom:0.8rem;">'
-                f'  <strong style="font-size:1.05rem">{s["segment"]}</strong> <span style="color:#9ca3af; margin-left:0.6rem;">{s["count"]} reviews</span>'
-                f'  <div style="color:#E5E5E5; margin-top:0.6rem;">Top frustration: <em>{(s.get("representative_quote") or "No quote available")[:220]}</em></div>'
-                f'  <div style="margin-top:0.6rem; color:#b3b3b3;">Evidence strength: <strong>{strength}</strong> · review id: {s.get("representative_review_id")}</div>'
+                f'  <strong style="font-size:1.05rem">{html.escape(s["segment"])}</strong>'
+                f'  <span style="color:#9ca3af; margin-left:0.6rem;">{render_based_on_badge(s["count"])}</span>'
+                f'  <div style="margin-top:0.55rem;"><span class="strength-badge {strength_class}">Evidence: {strength_label}</span></div>'
+                f'  <div style="color:#E5E5E5; margin-top:0.6rem;">Top frustration: <em>{html.escape((s.get("representative_quote") or "No quote available")[:220])}</em></div>'
+                f'  <div style="margin-top:0.6rem; color:#b3b3b3;">Representative review id: {html.escape(str(s.get("representative_review_id") or "N/A"))}</div>'
                 f'</div>',
                 unsafe_allow_html=True
             )
@@ -1827,22 +1977,31 @@ elif st.session_state.active_tab == "Unmet Needs":
     if pain_points:
         for idx, pp in enumerate(pain_points, 1):
             score = pp.get("opportunity_score") or 0
-            score_bar = "🟩" * min(int(score / 20), 5)
-            strength = "Low"
-            if pp.get("supporting_review_count", 0) >= 50:
-                strength = "High"
-            elif pp.get("supporting_review_count", 0) >= 15:
-                strength = "Medium"
+            supporting_count = int(pp.get("supporting_review_count", 0) or 0)
+            strength_label, strength_class = evidence_strength_label(supporting_count)
+            theme_id = pp.get("theme_id")
 
-            supporting_count = pp.get("supporting_review_count", 0)
             st.markdown(
                 f'<div style="background:#181818; padding:1.2rem; border-radius:10px; border:1px solid rgba(255,255,255,0.05); margin-bottom: 1rem;">'
-                f'  <h4 style="margin:0 0 0.5rem 0;">{idx}. Need: {pp.get("summary", "Unknown need")}</h4>'
-                f'  <div style="font-size:0.95rem; color:#E5E5E5;">{supporting_count:,} users mention this — Evidence strength: <strong>{strength}</strong></div>'
-                f'  <div style="margin-top:0.75rem; color:#d1d5db;">Priority signal: {score_bar or "▁▁▁▁▁"} ({score:.1f})</div>'
+                f'  <h4 style="margin:0 0 0.5rem 0;">{idx}. Need: {html.escape(pp.get("summary", "Unknown need"))}</h4>'
+                f'  <div style="margin-bottom:0.55rem;">{render_based_on_badge(supporting_count)}</div>'
+                f'  <div style="font-size:0.95rem; color:#E5E5E5;">Evidence strength: <span class="strength-badge {strength_class}">{strength_label}</span></div>'
+                f'  <div style="margin-top:0.75rem; color:#d1d5db;">Priority signal score: {score:.1f}</div>'
                 f'</div>',
                 unsafe_allow_html=True
             )
+            if theme_id:
+                with st.expander(f"View supporting evidence for need {idx}", expanded=False):
+                    theme_reviews = fetch_theme_reviews(theme_id, limit=3)
+                    if theme_reviews:
+                        for rev in theme_reviews:
+                            st.markdown(
+                                f'<div class="evidence-quote-box">"{html.escape(rev.get("content", "")[:320])}"'
+                                f'<div class="evidence-quote-source">review_id: {rev.get("id")} · {sentiment_badge(rev.get("sentiment"))}</div></div>',
+                                unsafe_allow_html=True,
+                            )
+                    else:
+                        st.caption("No supporting reviews were returned for this need.")
     else:
         st.info("No opportunity records found for the current filter.")
 
@@ -1852,7 +2011,7 @@ elif st.session_state.active_tab == "Unmet Needs":
 # ═══════════════════════════════════════════════════════════════════════════
 elif st.session_state.active_tab == "Review Discovery":
     st.subheader("🔎 Raw Review Discovery Search")
-    st.caption("Search reviews semantically (meaning matching) or using literal keyword matches")
+    st.caption("Search reviews semantically (meaning matching) or using literal keyword matches. Results respect the shared filters above.")
 
     search_val = st.text_input("Enter search keywords, questions, or themes:", placeholder="e.g. repetitive recommendations")
     search_triggered = st.button("Search Database", type="primary")
@@ -1860,9 +2019,10 @@ elif st.session_state.active_tab == "Review Discovery":
     if search_triggered and search_val.strip():
         search_data = search_reviews(search_val, selected_platform, date_start, date_end)
         results = search_data.get("results", [])
+        total_matches = search_data.get("total_matches", len(results))
 
         if results:
-            st.success(f'Found **{len(results)}** matching reviews')
+            st.success(f"Found **{len(results)}** displayed reviews ({total_matches:,} total matches)")
             for r in results:
                 posted = r.get("posted_at", "")
                 try:
@@ -1870,13 +2030,12 @@ elif st.session_state.active_tab == "Review Discovery":
                 except Exception:
                     posted = "Unknown"
                 plat_name = PLATFORM_LABELS.get(r["platform"], r["platform"])
-                sent_emoji = {"positive": "🟢", "negative": "🔴", "neutral": "⚪"}.get(r.get("sentiment"), "⚪")
-                
+
                 st.markdown(
                     f'<div style="background:#181818; padding:1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.04); margin-bottom: 0.6rem;">'
-                    f'  <p style="margin:0; font-size: 0.95rem; color:#ffffff;">"{r["content"]}"</p>'
+                    f'  <p style="margin:0; font-size: 0.95rem; color:#ffffff;">"{html.escape(r.get("content", "")[:500])}"</p>'
                     f'  <div style="font-size:0.75rem; color:#8e8e8e; margin-top:0.4rem;">'
-                    f'    {sent_emoji} {r.get("sentiment", "unknown")} · 📱 {plat_name} · 📅 {posted}'
+                    f'    {sentiment_badge(r.get("sentiment"))} · {html.escape(plat_name)} · {html.escape(posted)} · review_id: {html.escape(str(r.get("id", "unknown")))}'
                     f'  </div>'
                     f'</div>',
                     unsafe_allow_html=True

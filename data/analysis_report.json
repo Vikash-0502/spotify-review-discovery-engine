@@ -1,0 +1,81 @@
+{
+  "generated_at": "2026-07-04T15:06:19.077608+00:00",
+  "reviews_analyzed": 2242,
+  "sentiment_labeled_this_run": 0,
+  "embeddings_saved_this_run": 2275,
+  "themes_created_this_run": 0,
+  "insights_created_this_run": 0,
+  "quotes_created_this_run": 0,
+  "outlier_reviews": 624,
+  "totals": {
+    "reviews": 2275,
+    "with_sentiment": 2275,
+    "with_embeddings": 2275,
+    "themes": 18,
+    "insights": 64,
+    "quotes": 54
+  },
+  "sentiment_breakdown": {
+    "negative": 1177,
+    "neutral": 364,
+    "positive": 734
+  },
+  "top_themes": [
+    {
+      "name": "music, love, easy, best",
+      "review_count": 231,
+      "sentiment": "positive"
+    },
+    {
+      "name": "ads, premium, free, music",
+      "review_count": 208,
+      "sentiment": "negative"
+    },
+    {
+      "name": "ads, premium, song, songs",
+      "review_count": 207,
+      "sentiment": "negative"
+    },
+    {
+      "name": "shuffle, songs, queue, playlist",
+      "review_count": 186,
+      "sentiment": "negative"
+    },
+    {
+      "name": "playlist, play, ive, load",
+      "review_count": 179,
+      "sentiment": "negative"
+    },
+    {
+      "name": "music, great, recommendations, best",
+      "review_count": 133,
+      "sentiment": "positive"
+    },
+    {
+      "name": "ai, slop, generated, music",
+      "review_count": 88,
+      "sentiment": "negative"
+    },
+    {
+      "name": "songs, radio, dj, listening",
+      "review_count": 85,
+      "sentiment": "neutral"
+    },
+    {
+      "name": "shuffle, smart, smart shuffle, songs",
+      "review_count": 74,
+      "sentiment": "negative"
+    },
+    {
+      "name": "account, wed, issue, hey",
+      "review_count": 37,
+      "sentiment": "neutral"
+    }
+  ],
+  "exit_criteria": {
+    "all_reviews_have_sentiment": true,
+    "themes_generated": true,
+    "insights_with_evidence": true,
+    "search_index_ready": true
+  }
+}

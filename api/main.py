@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import analytics, questions, search
+from api.routes import analytics, chat, questions, search
 from models.database import init_db
 from utils.config import get_settings
 from utils.logging import setup_logging
@@ -27,6 +27,7 @@ app.add_middleware(
 
 app.include_router(analytics.router, prefix="/api")
 app.include_router(search.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
 app.include_router(questions.router, prefix="/api")
 
 

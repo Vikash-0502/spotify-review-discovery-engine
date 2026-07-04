@@ -4,8 +4,31 @@ import re
 from typing import Any
 
 EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
-PHONE_RE = re.compile(r"(?:\+?\d[\d\s().-]{7,}\d)")
+PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}\b")
 HANDLE_RE = re.compile(r"(?<!\w)@[A-Za-z0-9_]{2,}")
+UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+SKIP_VALUE_SCAN_KEYS = {
+    "id",
+    "review_id",
+    "theme_id",
+    "run_id",
+    "record_id",
+    "external_id",
+    "document_id",
+}
+
+
+def should_scan_text_field(field_name: str, text: str) -> bool:
+    lowered = field_name.lower()
+    if lowered in SKIP_VALUE_SCAN_KEYS or lowered.endswith("_id"):
+        return False
+    if UUID_RE.match(text.strip()):
+        return False
+    return True
 
 
 def find_pii(text: str) -> list[str]:

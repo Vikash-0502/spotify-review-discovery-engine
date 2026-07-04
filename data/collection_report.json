@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-06-27T12:09:21.086795+00:00",
+  "total_records": 2317,
+  "sources_used": 3,
+  "by_platform": {
+    "app_store": 74,
+    "play_store": 1661,
+    "spotify_community": 582
+  },
+  "collection_window": {
+    "start": "2026-06-27T11:30:46.144606",
+    "end": "2026-06-27T12:09:12.998508"
+  },
+  "run_details": [
+    {
+      "platform": "play_store",
+      "fetched": 4343558,
+      "matched": 874,
+      "saved": 121,
+      "skipped_duplicates": 753,
+      "errors": [],
+      "date_start": "2024-08-21",
+      "date_end": "2026-06-26"
+    },
+    {
+      "platform": "app_store",
+      "fetched": 0,
+      "matched": 0,
+      "saved": 0,
+      "skipped_duplicates": 0,
+      "errors": [],
+      "date_start": null,
+      "date_end": null
+    },
+    {
+      "platform": "reddit",
+      "fetched": 0,
+      "matched": 0,
+      "saved": 0,
+      "skipped_duplicates": 0,
+      "errors": [
+        "Reddit API credentials not configured in .env \u2014 skipped"
+      ],
+      "date_start": null,
+      "date_end": null
+    },
+    {
+      "platform": "spotify_community",
+      "fetched": 0,
+      "matched": 0,
+      "saved": 0,
+      "skipped_duplicates": 0,
+      "errors": [
+        "search 'recommendations algorithm': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=recommendations+algorithm'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "search 'discover weekly': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=discover+weekly'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "search 'find new music': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=find+new+music'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "search 'repetitive songs': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=repetitive+songs'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "search 'smart shuffle': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=smart+shuffle'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "search 'release radar': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=release+radar'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "search 'daily mix': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=daily+mix'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "search 'music discovery': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=music+discovery'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+        "search 'song radio': Client error '404 Not Found' for url 'https://community.spotify.com/search.json?q=song+radio'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404"
+      ],
+      "date_start": null,
+      "date_end": null
+    }
+  ],
+  "exit_criteria": {
+    "min_2000_records": true,
+    "min_3_sources": true
+  }
+}

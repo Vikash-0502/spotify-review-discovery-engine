@@ -1,0 +1,33 @@
+{
+  "generated_at": "2026-06-27T14:23:05.859409+00:00",
+  "raw_input": 2317,
+  "already_processed_skipped": 0,
+  "newly_saved": 2275,
+  "dropped": 42,
+  "drop_reasons": {
+    "not_discovery_related": 34,
+    "content_too_long": 4,
+    "duplicate_content": 4
+  },
+  "duplicates_removed": 4,
+  "pii_redactions": 12,
+  "saved_by_platform_this_run": {
+    "play_store": 1660,
+    "spotify_community": 541,
+    "app_store": 74
+  },
+  "total_processed_in_db": 2275,
+  "processed_by_platform": {
+    "app_store": 74,
+    "play_store": 1660,
+    "spotify_community": 541
+  },
+  "date_range": {
+    "start": "2018-09-24T02:34:09",
+    "end": "2026-06-27T11:03:41.560000"
+  },
+  "exit_criteria": {
+    "min_2000_processed": true,
+    "all_have_required_fields": true
+  }
+}

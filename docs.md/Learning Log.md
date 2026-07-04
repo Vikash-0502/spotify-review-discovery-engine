@@ -1,5 +1,82 @@
 # Learning Log
 
+## 2026-07-05 — Phase 9 Complete (Integration & Delivery)
+
+**In simple terms:** We added a final validation layer that checks the whole system end-to-end — research questions, search, chat, dashboard APIs, and a privacy audit — plus a demo script for presentations.
+
+### What Was Built
+
+- `scripts/validate_integration.py` — CLI for API + database integration checks
+- `validation/privacy_audit.py` — scans reviews, quotes, insights, pulses, and API payloads for PII
+- `tests/test_integration.py` and `tests/test_privacy_audit.py` — automated Phase 9 coverage
+- `docs.md/demo_script.md` — 10–15 minute mentor/demo walkthrough
+- `docs.md/Context-Token-Usage.md` — why Cursor conversation context consumes high tokens
+- `README.md` — aligned phase table and validation commands
+
+### Files Added / Updated
+
+| File | Update |
+|---|---|
+| `validation/privacy_audit.py` | New privacy audit module |
+| `scripts/validate_integration.py` | New end-to-end validation CLI |
+| `tests/test_integration.py` | Integration tests for core API surfaces |
+| `tests/test_privacy_audit.py` | Privacy audit unit tests |
+| `docs.md/demo_script.md` | Demo walkthrough |
+| `docs.md/Context-Token-Usage.md` | Token usage explanation |
+| `docs.md/implementationplan.md` | Phase 9 marked complete |
+| `README.md` | Final delivery documentation |
+
+---
+
+## 2026-07-05 — Phase 8 Complete (Dashboard Evidence UX)
+
+**In simple terms:** We finished the dashboard experience so every tab shares the same filters, the Overview maps to the six research questions, and AI claims show clear “Based on N reviews” evidence with expandable quotes.
+
+### What Was Built
+
+- Shared **Review filters** bar above all five tabs (source + date range)
+- Active filter summary badge showing source, dates, and review count in scope
+- **Research questions** section on Overview with six answer cards, criticality, and expandable evidence
+- **Based on N reviews** badges on themes, segments, unmet needs, and chat responses
+- Colorblind-safe sentiment and evidence-strength labels (text + distinct colors, not emoji-only)
+- Review Discovery results now show review_id and accessible sentiment badges
+
+### Files Updated
+
+| File | Update |
+|---|---|
+| `dashboard/app.py` | Shared filters, research question cards, evidence UX, accessible styling |
+| `dashboard/helpers.py` | Testable evidence badge and sentiment helpers |
+| `tests/test_dashboard_phase8.py` | Helper tests for Phase 8 dashboard utilities |
+| `docs.md/implementationplan.md` | Phase 8 marked complete with notes |
+
+---
+
+## 2026-07-05 — Phase 7 Complete (API & Search + RAG Chat)
+
+**In simple terms:** We finished the backend search and chat layer. The dashboard chat now calls a real API endpoint that retrieves matching reviews from Chroma, answers only from that evidence, and cites review IDs.
+
+### What Was Built
+
+- `analysis/retrieval.py` — shared hybrid semantic + keyword review retrieval
+- `analysis/rag.py` — grounded chat answers with Groq fallback and explicit refusal when no reviews match
+- `GET /api/chat` — RAG chat endpoint with citations, severity score, and research-question mapping
+- Search now ranks matches by relevance and latest review date
+- Dashboard **Themes & Chat** tab now uses `/api/chat` instead of local search-only answers
+
+### Files Added / Updated
+
+| File | Update |
+|---|---|
+| `analysis/retrieval.py` | New shared retrieval helper |
+| `analysis/rag.py` | New grounded chat answer service |
+| `api/routes/chat.py` | New chat endpoint |
+| `api/routes/search.py` | Refactored to use shared retrieval |
+| `api/schemas.py` | Added `ChatResponse` models |
+| `dashboard/app.py` | Wired chat UI to `/api/chat` |
+| `tests/test_rag_api.py` | Phase 7 API/RAG tests |
+
+---
 A running log of architecture and scope updates for quick review.
 
 ---
