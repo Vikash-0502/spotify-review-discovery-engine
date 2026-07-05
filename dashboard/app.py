@@ -35,9 +35,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+import os
+
 settings = get_settings()
-api_host = "127.0.0.1" if settings.api_host == "0.0.0.0" else settings.api_host
-API_BASE_URL = f"http://{api_host}:{settings.api_port}/api"
+
+API_BASE_URL = os.getenv(
+    "API_BASE_URL",
+    f"http://127.0.0.1:{settings.api_port}/api"
+)
+
+HEALTH_URL = API_BASE_URL.replace("/api", "/health")
 
 PLATFORM_LABELS = {
     "play_store": "Play Store Reviews",
@@ -61,7 +68,7 @@ TAB_OPTIONS = ["Overview", "Themes & Chat", "Segments", "Unmet Needs", "Review D
 # ═══════════════════════════════════════════════════════════════════════════
 def check_api_health() -> bool:
     try:
-        resp = requests.get(f"http://{api_host}:{settings.api_port}/health", timeout=2.0)
+        resp = requests.get(HEALTH_URL, timeout=2.0)
         return resp.status_code == 200 and resp.json().get("status") == "ok"
     except Exception:
         return False
