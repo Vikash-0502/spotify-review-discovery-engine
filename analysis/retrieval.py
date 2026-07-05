@@ -36,7 +36,7 @@ def retrieve_reviews_hybrid(
     platform: str | None = None,
     limit: int = 20,
 ) -> tuple[list[Review], int]:
-    """Return ranked reviews using semantic Chroma search plus keyword matches."""
+    """Return ranked reviews using pgvector semantic search plus keyword matches."""
     base_query = db.query(Review)
     base_query = apply_review_filters(base_query, from_date, to_date, platform, Review.posted_at)
 
@@ -48,7 +48,10 @@ def retrieve_reviews_hybrid(
     semantic_hits = query_similar_review_ids(
         query_embedding=query_emb,
         top_k=max(limit * 5, 25),
-        where={"platform": platform} if platform else None,
+        platform=platform,
+        from_date=from_date,
+        to_date=to_date,
+        db=db,
     )
 
     scored_reviews: list[tuple[float, Review]] = []

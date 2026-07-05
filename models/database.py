@@ -2,9 +2,8 @@
 
 from collections.abc import Generator
 from contextlib import contextmanager
-from pathlib import Path
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -19,26 +18,23 @@ _engine: Engine | None = None
 _session_factory: sessionmaker | None = None
 
 
-def _ensure_sqlite_directory(database_url: str) -> None:
-    if database_url.startswith("sqlite:///"):
-        db_path = Path(database_url.replace("sqlite:///", ""))
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-
-
-@event.listens_for(Engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record) -> None:
-    if dbapi_connection.__class__.__module__.startswith("sqlite3"):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def is_postgresql(database_url: str) -> bool:
+    return database_url.startswith("postgresql")
 
 
 def get_engine() -> Engine:
     global _engine
     if _engine is None:
         settings = get_settings()
-        _ensure_sqlite_directory(settings.database_url)
-        _engine = create_engine(settings.database_url, future=True)
+        if not is_postgresql(settings.database_url):
+            raise DatabaseError(
+                "PostgreSQL is required. Set DATABASE_URL to a postgresql+psycopg:// connection string."
+            )
+        _engine = create_engine(
+            settings.database_url,
+            future=True,
+            pool_pre_ping=True,
+        )
     return _engine
 
 
@@ -59,9 +55,11 @@ def reset_engine() -> None:
 
 
 def init_db() -> None:
-    """Create all database tables."""
+    """Create pgvector extension and all database tables."""
     engine = get_engine()
     try:
+        with engine.begin() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         Base.metadata.create_all(bind=engine)
         logger.info("Database initialized at %s", get_settings().database_url)
     except Exception as exc:
@@ -85,4 +83,3 @@ def get_db_session() -> Generator[Session, None, None]:
     """FastAPI dependency that yields a database session."""
     with get_session() as session:
         yield session
-

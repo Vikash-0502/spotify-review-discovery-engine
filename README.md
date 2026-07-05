@@ -60,15 +60,40 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Step 3: Initialize the Database
+### Step 3: Start PostgreSQL (with pgvector)
+
+```bash
+docker compose up -d
+```
+
+Copy environment variables and adjust if needed:
+
+```bash
+copy .env.example .env
+```
+
+Default connection:
+
+`postgresql+psycopg://postgres:postgres@localhost:5432/review_discovery`
+
+### Step 4: Initialize the Database
 
 ```bash
 python scripts/init_db.py
 ```
 
-Expected output: `Database initialized at sqlite:///data/reviews.db`
+Expected output: `Database initialized at postgresql+psycopg://...`
 
-### Step 4: Start the API Backend (Terminal 1)
+#### Migrating existing SQLite + Chroma data (optional)
+
+If you already have `data/reviews.db` and `data/chroma/`:
+
+```bash
+pip install chromadb
+python scripts/migrate_sqlite_chroma_to_postgres.py
+```
+
+### Step 5: Start the API Backend (Terminal 1)
 
 ```bash
 .venv\Scripts\python -m uvicorn api.main:app --reload
@@ -78,7 +103,7 @@ Expected output: `Database initialized at sqlite:///data/reviews.db`
 - **Health Check**: http://localhost:8000/health
 - **RAG Chat**: `GET /api/chat?q=your+question&platform=play_store`
 
-### Step 5: Start the Dashboard (Terminal 2)
+### Step 6: Start the Dashboard (Terminal 2)
 
 ```bash
 .venv\Scripts\python -m streamlit run dashboard/app.py
@@ -86,7 +111,7 @@ Expected output: `Database initialized at sqlite:///data/reviews.db`
 
 Visit **http://localhost:8501**
 
-### Step 6: Validate Integration (Phase 9)
+### Step 7: Validate Integration (Phase 9)
 
 ```bash
 # Full check (API must be running)
@@ -99,6 +124,8 @@ Visit **http://localhost:8501**
 ---
 
 ## Running Tests
+
+Requires PostgreSQL with pgvector (use `docker compose up -d` and set `TEST_DATABASE_URL` if needed):
 
 ```bash
 pytest tests/ -v
@@ -119,10 +146,11 @@ python scripts/run_pulse.py --dry-run
 |---|---|
 | `run_collection.py` | Collect public reviews from Play Store, App Store, community |
 | `run_processing.py` | Clean, anonymize, deduplicate |
-| `run_analysis.py` | Sentiment, themes, embeddings, Chroma index |
+| `run_analysis.py` | Sentiment, themes, embeddings, pgvector index |
 | `run_pulse.py` | Weekly pulse generation and Docs delivery |
 | `validate_integration.py` | End-to-end + privacy validation |
 | `remediate_content_pii.py` | Redact residual @handles in stored text |
+| `migrate_sqlite_chroma_to_postgres.py` | One-time migration from legacy SQLite + Chroma |
 
 ## Project Structure
 

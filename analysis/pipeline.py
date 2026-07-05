@@ -40,22 +40,14 @@ def _load_or_build_embeddings(session, reviews: list[Review], settings) -> tuple
     if len(existing_vectors) == len(reviews):
         return existing_vectors, 0
 
-    logger.info("Chroma index missing some embeddings; rebuilding collection entries for current reviews.")
+    logger.info("pgvector index missing some embeddings; rebuilding vectors for current reviews.")
     texts = [review.content for review in reviews]
     vectors = encode_texts(texts)
-    metadatas = [
-        {
-            "platform": review.platform,
-            "posted_at": review.posted_at.isoformat(),
-            "sentiment": review.sentiment or "",
-        }
-        for review in reviews
-    ]
     saved = upsert_review_embeddings(
         review_ids=review_ids,
         texts=texts,
         embeddings=vectors,
-        metadatas=metadatas,
+        db=session,
     )
     return vectors, saved
 

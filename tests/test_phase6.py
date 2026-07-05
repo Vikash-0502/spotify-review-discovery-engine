@@ -10,17 +10,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from delivery.pulse import run_weekly_pulse  # noqa: E402
-from models.database import get_session_factory, init_db, reset_engine  # noqa: E402
+from models.database import get_session_factory  # noqa: E402
 from models.schema import Quote, RawReview, Review, ReviewTheme, Theme, WeeklyPulse  # noqa: E402
 from validation.validator import validate_weekly_pulse  # noqa: E402
 
 
 @pytest.fixture
-def phase6_db(tmp_path, monkeypatch):
-    db_path = tmp_path / "phase6.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+def phase6_db(postgres_url, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", postgres_url)
     monkeypatch.setenv("GROQ_API_KEY", "")
     from utils.config import get_settings
+    from models.database import reset_engine, init_db
 
     get_settings.cache_clear()
     reset_engine()

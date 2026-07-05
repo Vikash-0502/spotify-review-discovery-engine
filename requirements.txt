@@ -4,6 +4,8 @@ pydantic-settings>=2.1.0
 
 # Database
 sqlalchemy>=2.0.25
+psycopg[binary]>=3.1.18
+pgvector>=0.3.6
 
 # API (Phase 5)
 fastapi>=0.109.0
@@ -20,7 +22,6 @@ requests>=2.31.0
 
 # NLP (Phase 4)
 sentence-transformers>=2.3.0
-chromadb>=0.5.5
 bertopic>=0.16.0
 transformers>=4.36.0
 torch>=2.0.0

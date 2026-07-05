@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -11,12 +12,13 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    LargeBinary,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+EMBEDDING_DIM = 384
 
 
 def utcnow() -> datetime:
@@ -75,10 +77,18 @@ class Review(Base):
 
 class ReviewEmbedding(Base):
     __tablename__ = "review_embeddings"
+    __table_args__ = (
+        Index(
+            "ix_review_embeddings_vector_hnsw",
+            "embedding_vector",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding_vector": "vector_cosine_ops"},
+        ),
+    )
 
     review_id: Mapped[str] = mapped_column(String(36), ForeignKey("reviews.id"), primary_key=True)
     embedding_model: Mapped[str] = mapped_column(String(100), nullable=False)
-    embedding_vector: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    embedding_vector: Mapped[list] = mapped_column(Vector(EMBEDDING_DIM), nullable=False)
     indexed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     review: Mapped["Review"] = relationship(back_populates="embedding")

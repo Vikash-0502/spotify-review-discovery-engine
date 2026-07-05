@@ -1,43 +1,43 @@
-"""Persistent Chroma vector store for review embeddings and retrieval."""
+"""Persistent pgvector store for review embeddings and retrieval."""
 
 from __future__ import annotations
 
-from pathlib import Path
+from datetime import datetime
 
 import numpy as np
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session
 
 from analysis.embeddings import EMBEDDING_DIM
+from models.database import get_session_factory
+from models.schema import Review, ReviewEmbedding, utcnow
 from utils.config import get_settings
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def _get_client():
-    import chromadb
-
-    settings = get_settings()
-    chroma_path = Path(settings.chroma_path)
-    chroma_path.mkdir(parents=True, exist_ok=True)
-    return chromadb.PersistentClient(path=str(chroma_path))
+def _use_session(db: Session | None) -> tuple[Session, bool]:
+    if db is not None:
+        return db, False
+    return get_session_factory()(), True
 
 
-def get_review_collection():
-    settings = get_settings()
-    client = _get_client()
-    return client.get_or_create_collection(
-        name=settings.chroma_collection_name,
-        metadata={"hnsw:space": "cosine"},
-    )
+def clear_review_embeddings(db: Session | None = None) -> None:
+    session, own_session = _use_session(db)
+    try:
+        session.execute(delete(ReviewEmbedding))
+        if own_session:
+            session.commit()
+    finally:
+        if own_session:
+            session.close()
 
 
 def clear_review_collection() -> None:
-    settings = get_settings()
-    client = _get_client()
-    try:
-        client.delete_collection(settings.chroma_collection_name)
-    except Exception:
-        logger.debug("Chroma collection did not exist; nothing to clear.")
+    """Backward-compatible alias for the old Chroma clear helper."""
+    clear_review_embeddings()
 
 
 def upsert_review_embeddings(
@@ -46,65 +46,105 @@ def upsert_review_embeddings(
     texts: list[str],
     embeddings: np.ndarray,
     metadatas: list[dict] | None = None,
+    db: Session | None = None,
 ) -> int:
+    del texts, metadatas  # metadata lives on Review; kept for call-site compatibility
     if not review_ids:
         return 0
 
-    collection = get_review_collection()
-    if metadatas is None:
-        metadatas = [{} for _ in review_ids]
+    settings = get_settings()
+    session, own_session = _use_session(db)
+    try:
+        rows = [
+            {
+                "review_id": review_id,
+                "embedding_model": settings.embedding_model,
+                "embedding_vector": embeddings[idx].astype(float).tolist(),
+                "indexed_at": utcnow(),
+            }
+            for idx, review_id in enumerate(review_ids)
+        ]
+        stmt = insert(ReviewEmbedding).values(rows)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[ReviewEmbedding.review_id],
+            set_={
+                "embedding_model": stmt.excluded.embedding_model,
+                "embedding_vector": stmt.excluded.embedding_vector,
+                "indexed_at": stmt.excluded.indexed_at,
+            },
+        )
+        session.execute(stmt)
+        if own_session:
+            session.commit()
+        return len(review_ids)
+    finally:
+        if own_session:
+            session.close()
 
-    collection.upsert(
-        ids=review_ids,
-        documents=texts,
-        embeddings=embeddings.astype(float).tolist(),
-        metadatas=metadatas,
-    )
-    return len(review_ids)
 
-
-def get_embeddings_for_reviews(review_ids: list[str]) -> np.ndarray:
+def get_embeddings_for_reviews(review_ids: list[str], db: Session | None = None) -> np.ndarray:
     if not review_ids:
         return np.empty((0, EMBEDDING_DIM), dtype=np.float32)
 
-    collection = get_review_collection()
-    result = collection.get(ids=review_ids, include=["embeddings"])
-    returned_ids = result.get("ids", [])
-    returned_embeddings = result.get("embeddings", [])
-
-    embed_map = {
-        review_id: np.asarray(embedding, dtype=np.float32)
-        for review_id, embedding in zip(returned_ids, returned_embeddings)
-    }
-    ordered_vectors = [embed_map[review_id] for review_id in review_ids if review_id in embed_map]
-    if not ordered_vectors:
-        return np.empty((0, EMBEDDING_DIM), dtype=np.float32)
-    return np.vstack(ordered_vectors)
+    session, own_session = _use_session(db)
+    try:
+        stmt = select(ReviewEmbedding).where(ReviewEmbedding.review_id.in_(review_ids))
+        rows = session.scalars(stmt).all()
+        embed_map = {
+            row.review_id: np.asarray(row.embedding_vector, dtype=np.float32)
+            for row in rows
+        }
+        ordered_vectors = [embed_map[review_id] for review_id in review_ids if review_id in embed_map]
+        if not ordered_vectors:
+            return np.empty((0, EMBEDDING_DIM), dtype=np.float32)
+        return np.vstack(ordered_vectors)
+    finally:
+        if own_session:
+            session.close()
 
 
 def query_similar_review_ids(
     *,
     query_embedding: np.ndarray,
     top_k: int,
+    platform: str | None = None,
+    from_date: datetime | None = None,
+    to_date: datetime | None = None,
     where: dict | None = None,
+    db: Session | None = None,
 ) -> list[tuple[str, float]]:
-    collection = get_review_collection()
-    result = collection.query(
-        query_embeddings=[query_embedding.astype(float).tolist()],
-        n_results=top_k,
-        where=where,
-        include=["distances"],
-    )
+    del where  # legacy Chroma filter arg; use platform/from_date/to_date instead
+    session, own_session = _use_session(db)
+    try:
+        distance = ReviewEmbedding.embedding_vector.cosine_distance(
+            query_embedding.astype(float).tolist()
+        )
+        stmt = (
+            select(Review.id, distance.label("distance"))
+            .join(ReviewEmbedding, Review.id == ReviewEmbedding.review_id)
+        )
+        if platform:
+            stmt = stmt.where(Review.platform == platform)
+        if from_date:
+            stmt = stmt.where(Review.posted_at >= from_date)
+        if to_date:
+            stmt = stmt.where(Review.posted_at <= to_date)
+        stmt = stmt.order_by(distance).limit(top_k)
 
-    ids = (result.get("ids") or [[]])[0]
-    distances = (result.get("distances") or [[]])[0]
-    scored: list[tuple[str, float]] = []
-    for review_id, distance in zip(ids, distances):
-        score = max(0.0, 1.0 - float(distance))
-        scored.append((review_id, score))
-    return scored
+        scored: list[tuple[str, float]] = []
+        for review_id, dist in session.execute(stmt).all():
+            score = max(0.0, 1.0 - float(dist))
+            scored.append((review_id, score))
+        return scored
+    finally:
+        if own_session:
+            session.close()
 
 
-def count_embeddings() -> int:
-    collection = get_review_collection()
-    return collection.count()
+def count_embeddings(db: Session | None = None) -> int:
+    session, own_session = _use_session(db)
+    try:
+        return session.scalar(select(func.count()).select_from(ReviewEmbedding)) or 0
+    finally:
+        if own_session:
+            session.close()

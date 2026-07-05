@@ -9,33 +9,20 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from analysis.rag import REFUSAL_MESSAGE, answer_discovery_chat  # noqa: E402
-from models.database import get_session_factory, init_db, reset_engine  # noqa: E402
 
 
-@pytest.fixture
-def rag_db(tmp_path, monkeypatch):
-    db_path = tmp_path / "rag.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
-    reset_engine()
-    init_db()
-    session = get_session_factory()()
-    yield session
-    session.close()
-    reset_engine()
-
-
-def test_answer_discovery_chat_rejects_short_question(rag_db):
-    result = answer_discovery_chat(rag_db, "a")
+def test_answer_discovery_chat_rejects_short_question(db_session):
+    result = answer_discovery_chat(db_session, "a")
     assert result["refused"] is True
     assert result["based_on_review_count"] == 0
 
 
-def test_answer_discovery_chat_refuses_when_no_reviews(rag_db, monkeypatch):
+def test_answer_discovery_chat_refuses_when_no_reviews(db_session, monkeypatch):
     monkeypatch.setattr(
         "analysis.rag.retrieve_reviews_hybrid",
         lambda *args, **kwargs: ([], 0),
     )
-    result = answer_discovery_chat(rag_db, "Tell me about imaginary widget playback failures")
+    result = answer_discovery_chat(db_session, "Tell me about imaginary widget playback failures")
     assert result["refused"] is True
     assert REFUSAL_MESSAGE in result["answer"]
 

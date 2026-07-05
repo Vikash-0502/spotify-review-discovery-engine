@@ -10,12 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _default_database_url() -> str:
-    db_path = (PROJECT_ROOT / "data" / "reviews.db").resolve().as_posix()
-    return f"sqlite:///{db_path}"
-
-
-def _default_chroma_path() -> str:
-    return str((PROJECT_ROOT / "data" / "chroma").resolve())
+    return "postgresql+psycopg://postgres:postgres@localhost:5432/review_discovery"
 
 
 class Settings(BaseSettings):
@@ -35,8 +30,6 @@ class Settings(BaseSettings):
 
     embedding_model: str = "all-MiniLM-L6-v2"
     sentiment_model: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"
-    chroma_path: str = Field(default_factory=_default_chroma_path)
-    chroma_collection_name: str = "spotify_reviews"
     groq_api_key: str = ""
     groq_api_url: str = "https://api.groq.com/openai/v1/chat/completions"
     groq_model: str = "llama-3.3-70b-versatile"
